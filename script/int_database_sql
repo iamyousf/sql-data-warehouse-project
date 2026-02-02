@@ -1,0 +1,25 @@
+crateing database and schema
+--Script Purpose
+--This script creates the Bronze, Silver, and Gold schemas in SQL Server to organize data across raw, transformed, and analytics layers in a data warehouse.
+
+--Warning
+Run this script only once during initial setup. Re-running it without existence checks may cause errors if the schemas already exist
+
+--USE MASTER
+USE master;
+--CRETAE A DATABASE
+CREATE DATABASE Datawarehouse;
+--USE DATABASE
+USE Datawarehouse;
+--CREATING SCHEMA (BRONZE,SILVER,GOLD)
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'bronze')
+    EXEC('CREATE SCHEMA bronze');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'silver')
+    EXEC('CREATE SCHEMA silver');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'gold')
+    EXEC('CREATE SCHEMA gold');
+GO
