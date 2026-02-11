@@ -1,0 +1,5 @@
+USE Datawarehouse;
+GO
+SELECT * FROM gold.dim_customers
+SELECT * FROM gold.dim_products
+Select * FROM gold.fact_sales
