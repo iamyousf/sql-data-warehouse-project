@@ -1,0 +1,76 @@
+/**
+
+Purpose of the Script: Gold Layer Refinement and Star Schema Construction
+The primary purpose of this script is to architect the Gold Layer of the data warehouse by transforming cleaned data from the Silver layer into
+a Star Schema specifically optimized for Business Intelligence and analytical reporting. By creating the dim_customers, dim_products, and fact_sales 
+views, the script centralizes fragmented data from CRM and ERP systems into a unified "Single Source of Truth." It implements critical business logic, 
+such as consolidating gender data via COALESCE, filtering for active product records, and generating surrogate keys using ROW_NUMBER(). Ultimately, this
+script abstracts complex data relationships into user-friendly, high-performance structures that allow analytical tools like Power BI or Tableau to perform 
+fast, reliable aggregations and multi-dimensional analysis.
+
+**/
+USE Datawarehouse;
+GO
+--BULIDING A GOLD LAYER USING STAR SCHEME
+--VIEW FOR DIMENSIOM COSUTOMERS
+CREATE OR ALTER VIEW gold.dim_customers AS
+SELECT
+    ROW_NUMBER() OVER(ORDER BY ci.cst_id) AS customer_key,
+    ci.cst_id AS customer_id,
+    ci.cst_key AS customer_number,
+    ci.cst_firstname AS firstname,
+    ci.cst_lastname AS lastname,
+    la.cntry AS country,
+    CASE
+        WHEN ci.cst_gndr != 'n/a' THEN ci.cst_gndr
+        ELSE COALESCE(ca.gen, 'n/a')
+    END AS gender,
+    ci.cst_material_status AS marital_status,
+    ca.bdate AS birthdate,
+    ci.cst_create_date AS create_date
+FROM silver.crm_cust_info ci
+LEFT JOIN silver.erp_cust_az12 ca
+    ON ci.cst_key = ca.cid
+LEFT JOIN silver.erp_loc_a101 la
+    ON ci.cst_key = la.cid;
+GO
+
+--VIEW FOR DIMENSIOM PRODUCTS
+CREATE VIEW gold.dim_products AS
+SELECT
+   ROW_NUMBER() OVER(ORDER BY   pn.prd_start_dt,pn.prd_key) AS product_key,
+   pn.prd_id AS product_id,
+   pn.prd_key AS product_number,
+   pn.prd_nm  AS product_name,
+   pn.cat_id AS category_id,
+   pc.cat AS category,
+   pc.subcat AS subcategory,
+   pc.maintenance,
+   pn.prd_cost AS cost,
+   pn.prd_line AS product_line,
+   pn.prd_start_dt AS start_date
+FROM silver.crm_prd_info pn
+LEFT JOIN silver.erp_px_cat_g1v2 pc 
+ON  pn.cat_id=pc.id
+WHERE pn.prd_end_dt  IS NULL
+GO
+
+--VIEW FOR FACTS SALES DETAILS
+CREATE VIEW gold.fact_sales AS
+SELECT
+  sd.sls_ord_num AS order_number,
+  pr.product_key,
+  cu.customer_id,
+  sd.sls_order_dt AS order_date,
+  sd.sls_ship_dt AS shipping_date,
+  sd.sls_due_dt AS due_date,
+  sd.sls_sales AS sales_amount,
+  sd.sls_quantity AS quantity,
+  sd.sls_price AS price
+FROM silver.crm_sales_details sd
+LEFT JOIN gold.dim_products pr
+ON sls_prd_key=pr.product_number
+LEFT JOIN gold.dim_customers cu
+ON sls_cust_id=cu.customer_id
+GO
+
